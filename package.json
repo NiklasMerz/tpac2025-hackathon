@@ -1,0 +1,23 @@
+{
+  "name": "bcd-the-vibe",
+  "version": "1.0.0",
+  "description": "Just vibes",
+  "homepage": "https://github.com/niklasmerz/tpac2025-hackathon#readme",
+  "bugs": {
+    "url": "https://github.com/niklasmerz/tpac2025-hackathon/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niklasmerz/tpac2025-hackathon.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Niklas Merz",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@mdn/browser-compat-data": "^7.1.20"
+  }
+}
