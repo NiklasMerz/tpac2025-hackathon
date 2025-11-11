@@ -100,9 +100,9 @@
             <div class="chart" id="webview_android-chart"></div>
         </div>
         <div class="browser-section safari-ios">
-            <h2>Safari iOS</h2>
-            <div class="stats" id="safari_ios-stats"></div>
-            <div class="chart" id="safari_ios-chart"></div>
+            <h2>iOS (WebKit/WKWebView)</h2>
+            <div class="stats" id="webview_ios-stats"></div>
+            <div class="chart" id="webview_ios-chart"></div>
         </div>
     </div>
     <div class="tooltip" id="tooltip"></div>
@@ -117,7 +117,7 @@
             firefox: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/firefox.json')).json().then(d => d.data),
             safari: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/safari.json')).json().then(d => d.data),
             webview_android: {},
-            safari_ios: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/safari_ios.json')).json().then(d => d.data)
+            webview_ios: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/safari_ios.json')).json().then(d => d.data)
         };
 
         const dataTargets = ['api', 'css', 'html', 'http', 'javascript', 'manifests', 'mathml', 'svg', 'webassembly'];
@@ -127,7 +127,7 @@
             firefox: {},
             safari: {},
             webview_android: {},
-            safari_ios: {}
+            webview_ios: {}
         };
 
         function processCompatData(data, path = '') {
@@ -185,13 +185,13 @@
                 }
                 
                 // Safari iOS
-                if (support.safari_ios) {
-                    const versions = Array.isArray(support.safari_ios) ? support.safari_ios : [support.safari_ios];
+                if (support.webview_ios) {
+                    const versions = Array.isArray(support.webview_ios) ? support.webview_ios : [support.webview_ios];
                     versions.forEach(v => {
                         if (v.version_added && v.version_added !== true && v.version_added !== false) {
                             const version = v.version_added.replace('≤', '').replace('≥', '');
-                            if (!browserData.safari_ios[version]) browserData.safari_ios[version] = 0;
-                            browserData.safari_ios[version]++;
+                            if (!browserData.webview_ios[version]) browserData.webview_ios[version] = 0;
+                            browserData.webview_ios[version]++;
                         }
                     });
                 }
@@ -334,11 +334,10 @@
         }
 
         // Display results
-        displayBrowserVersions('chrome', 'Chrome', '#4285f4');
-        displayBrowserVersions('firefox', 'Firefox', '#ff6611');
-        displayBrowserVersions('safari', 'Safari', '#006cff');
+        displayBrowserVersions('chrome_android', 'Chrome Android', '#4285f4');
+        displayBrowserVersions('safari_ios', 'Safari iOS', '#006cff');
         displayBrowserVersions('webview_android', 'WebView Android', '#3ddc84');
-        displayBrowserVersions('safari_ios', 'Safari iOS', '#147efb');
+        displayBrowserVersions('webview_ios', 'iOS (WebKit/WKWebView)', '#147efb');
 
         // Hide loading, show content
         document.getElementById('loading').style.display = 'none';
