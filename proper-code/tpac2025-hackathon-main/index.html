@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Browser Feature Counts</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #fafafa;
+      padding: 20px;
+    }
+
+    .chart {
+      margin-bottom: 50px;
+    }
+
+    .bar {
+      fill: steelblue;
+    }
+
+    .bar:hover {
+      fill: orange;
+    }
+
+    .axis text {
+      font-size: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Feature Counts per Version</h1>
+  <div id="charts"></div>
+
+  <script>
+    fetch('./data.json')
+      .then(response => response.json())
+      .then(dataset => {
+        const container = d3.select('#charts');
+        const width = 600;
+        const height = 300;
+        const margin = { top: 30, right: 30, bottom: 50, left: 50 };
+
+        // Loop through each platform
+        Object.entries(dataset).forEach(([platform, versions]) => {
+
+          // Convert data to array
+          const data = Object.entries(versions).map(([version, count]) => ({
+            version,
+            count
+          }));
+
+          // X scale: versions
+          const x = d3.scaleBand()
+            .domain(data.map(d => d.version))
+            .range([margin.left, width - margin.right])
+            .padding(0.1);
+
+          // Y scale: counts
+          const y = d3.scaleLinear()
+            .domain([0, d3.max(data, d => d.count)]).nice()
+            .range([height - margin.bottom, margin.top]);
+
+          // Create SVG
+          const svg = container.append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('class', 'chart');
+
+          // Title
+          svg.append('text')
+            .attr('x', width / 2)
+            .attr('y', margin.top / 2)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '16px')
+            .attr('font-weight', 'bold')
+            .text(platform.toUpperCase());
+
+          // X axis
+          svg.append('g')
+            .attr('transform', `translate(0,${height - margin.bottom})`)
+            .call(d3.axisBottom(x))
+            .selectAll('text')
+            .attr('transform', 'rotate(-45)')
+            .style('text-anchor', 'end');
+
+          // Y axis
+          svg.append('g')
+            .attr('transform', `translate(${margin.left},0)`)
+            .call(d3.axisLeft(y));
+
+          // Bars
+          svg.selectAll('.bar')
+            .data(data)
+            .enter()
+            .append('rect')
+            .attr('class', 'bar')
+            .attr('x', d => x(d.version))
+            .attr('y', d => y(d.count))
+            .attr('width', x.bandwidth())
+            .attr('height', d => y(0) - y(d.count));
+
+        });
+      })
+      .catch(error => console.error('Error:', error));
+  </script>
+</body>
+
+</html>
