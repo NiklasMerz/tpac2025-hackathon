@@ -31,6 +31,8 @@
         .chrome h2 { color: #4285f4; border-color: #4285f4; }
         .firefox h2 { color: #ff6611; border-color: #ff6611; }
         .safari h2 { color: #006cff; border-color: #006cff; }
+        .webview-android h2 { color: #3ddc84; border-color: #3ddc84; }
+        .safari-ios h2 { color: #147efb; border-color: #147efb; }
         #loading {
             text-align: center;
             padding: 40px;
@@ -92,19 +94,40 @@
             <div class="stats" id="safari-stats"></div>
             <div class="chart" id="safari-chart"></div>
         </div>
+        <div class="browser-section webview-android">
+            <h2>WebView Android</h2>
+            <div class="stats" id="webview_android-stats"></div>
+            <div class="chart" id="webview_android-chart"></div>
+        </div>
+        <div class="browser-section safari-ios">
+            <h2>Safari iOS</h2>
+            <div class="stats" id="safari_ios-stats"></div>
+            <div class="chart" id="safari_ios-chart"></div>
+        </div>
     </div>
     <div class="tooltip" id="tooltip"></div>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script type="module">
         import bcd from './node_modules/@mdn/browser-compat-data/data.json' with { type: 'json' };
+        
+        // Load release dates directly from JSON files
+        const releaseDates = {
+            chrome: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/chrome.json')).json().then(d => d.data),
+            firefox: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/firefox.json')).json().then(d => d.data),
+            safari: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/safari.json')).json().then(d => d.data),
+            webview_android: {},
+            safari_ios: await (await fetch('./node_modules/@wonderium/browser-releases/dist/data/safari_ios.json')).json().then(d => d.data)
+        };
 
         const dataTargets = ['api', 'css', 'html', 'http', 'javascript', 'manifests', 'mathml', 'svg', 'webassembly'];
         
         const browserData = {
             chrome: {},
             firefox: {},
-            safari: {}
+            safari: {},
+            webview_android: {},
+            safari_ios: {}
         };
 
         function processCompatData(data, path = '') {
@@ -148,6 +171,30 @@
                         }
                     });
                 }
+                
+                // WebView Android
+                if (support.webview_android) {
+                    const versions = Array.isArray(support.webview_android) ? support.webview_android : [support.webview_android];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.webview_android[version]) browserData.webview_android[version] = 0;
+                            browserData.webview_android[version]++;
+                        }
+                    });
+                }
+                
+                // Safari iOS
+                if (support.safari_ios) {
+                    const versions = Array.isArray(support.safari_ios) ? support.safari_ios : [support.safari_ios];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.safari_ios[version]) browserData.safari_ios[version] = 0;
+                            browserData.safari_ios[version]++;
+                        }
+                    });
+                }
             }
             
             // Recursively process nested data
@@ -182,7 +229,8 @@
             // Prepare data for D3
             const data = sortedVersions.map(version => ({
                 version: version,
-                count: versions[version]
+                count: versions[version],
+                releaseDate: releaseDates[browserId]?.[version] || null
             }));
             
             // Create D3 bar chart
@@ -249,9 +297,10 @@
                 .attr('height', d => height - y(d.count))
                 .attr('fill', color)
                 .on('mouseover', function(event, d) {
+                    const dateInfo = d.releaseDate ? `<br/>Released: ${d.releaseDate}` : '';
                     tooltip
                         .style('display', 'block')
-                        .html(`<strong>Version ${d.version}</strong><br/>${d.count} features`);
+                        .html(`<strong>Version ${d.version}</strong><br/>${d.count} features${dateInfo}`);
                 })
                 .on('mousemove', function(event) {
                     tooltip
@@ -288,6 +337,8 @@
         displayBrowserVersions('chrome', 'Chrome', '#4285f4');
         displayBrowserVersions('firefox', 'Firefox', '#ff6611');
         displayBrowserVersions('safari', 'Safari', '#006cff');
+        displayBrowserVersions('webview_android', 'WebView Android', '#3ddc84');
+        displayBrowserVersions('safari_ios', 'Safari iOS', '#147efb');
 
         // Hide loading, show content
         document.getElementById('loading').style.display = 'none';

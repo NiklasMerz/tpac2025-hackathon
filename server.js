@@ -6,7 +6,7 @@ const PORT = 3000;
 
 const mimeTypes = {
     '.html': 'text/html',
-    '.js': 'text/javascript',
+    '.js': 'application/javascript',
     '.json': 'application/json',
     '.css': 'text/css'
 };
@@ -14,7 +14,7 @@ const mimeTypes = {
 createServer(async (req, res) => {
     let filePath = '.' + (req.url === '/' ? '/index.html' : req.url);
     const ext = extname(filePath);
-    const contentType = mimeTypes[ext] || 'text/plain';
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
 
     try {
         const content = await readFile(filePath);

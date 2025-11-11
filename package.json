@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@mdn/browser-compat-data": "^7.1.20",
+    "@wonderium/browser-releases": "^1.1.0",
     "d3": "^7.9.0"
   }
 }
