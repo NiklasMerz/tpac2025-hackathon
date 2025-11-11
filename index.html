@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Features by Version</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .browser-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .browser-section h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+        .chrome h2 { color: #4285f4; border-color: #4285f4; }
+        .firefox h2 { color: #ff6611; border-color: #ff6611; }
+        .safari h2 { color: #006cff; border-color: #006cff; }
+        #loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #666;
+        }
+        .stats {
+            text-align: center;
+            color: #666;
+            margin: 10px 0;
+            font-size: 0.95em;
+        }
+        .chart {
+            margin-top: 20px;
+        }
+        .bar {
+            cursor: pointer;
+        }
+        .bar:hover {
+            opacity: 0.8;
+        }
+        .axis text {
+            font-size: 11px;
+        }
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #ddd;
+            shape-rendering: crispEdges;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Browser Features by Version</h1>
+    <div id="loading">Loading data...</div>
+    <div id="content" style="display: none;">
+        <div class="browser-section chrome">
+            <h2>Chrome</h2>
+            <div class="stats" id="chrome-stats"></div>
+            <div class="chart" id="chrome-chart"></div>
+        </div>
+        <div class="browser-section firefox">
+            <h2>Firefox</h2>
+            <div class="stats" id="firefox-stats"></div>
+            <div class="chart" id="firefox-chart"></div>
+        </div>
+        <div class="browser-section safari">
+            <h2>Safari</h2>
+            <div class="stats" id="safari-stats"></div>
+            <div class="chart" id="safari-chart"></div>
+        </div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script type="module">
+        import bcd from './node_modules/@mdn/browser-compat-data/data.json' with { type: 'json' };
+
+        const dataTargets = ['api', 'css', 'html', 'http', 'javascript', 'manifests', 'mathml', 'svg', 'webassembly'];
+        
+        const browserData = {
+            chrome: {},
+            firefox: {},
+            safari: {}
+        };
+
+        function processCompatData(data, path = '') {
+            if (!data) return;
+            
+            if (data.__compat?.support) {
+                const support = data.__compat.support;
+                
+                // Chrome
+                if (support.chrome) {
+                    const versions = Array.isArray(support.chrome) ? support.chrome : [support.chrome];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.chrome[version]) browserData.chrome[version] = 0;
+                            browserData.chrome[version]++;
+                        }
+                    });
+                }
+                
+                // Firefox
+                if (support.firefox) {
+                    const versions = Array.isArray(support.firefox) ? support.firefox : [support.firefox];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.firefox[version]) browserData.firefox[version] = 0;
+                            browserData.firefox[version]++;
+                        }
+                    });
+                }
+                
+                // Safari
+                if (support.safari) {
+                    const versions = Array.isArray(support.safari) ? support.safari : [support.safari];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.safari[version]) browserData.safari[version] = 0;
+                            browserData.safari[version]++;
+                        }
+                    });
+                }
+            }
+            
+            // Recursively process nested data
+            Object.keys(data).forEach(key => {
+                if (key !== '__compat' && typeof data[key] === 'object') {
+                    processCompatData(data[key], path ? `${path}.${key}` : key);
+                }
+            });
+        }
+
+        // Process all BCD data
+        dataTargets.forEach(target => {
+            if (bcd[target]) {
+                processCompatData(bcd[target]);
+            }
+        });
+
+        function displayBrowserVersions(browserId, browserName, color) {
+            const versions = browserData[browserId];
+            const statsContainer = document.getElementById(`${browserId}-stats`);
+            
+            // Sort versions numerically
+            const sortedVersions = Object.keys(versions).sort((a, b) => {
+                const numA = parseFloat(a);
+                const numB = parseFloat(b);
+                return numA - numB; // Ascending order for chart
+            });
+            
+            const totalFeatures = Object.values(versions).reduce((sum, count) => sum + count, 0);
+            statsContainer.textContent = `Total: ${totalFeatures} features across ${sortedVersions.length} versions`;
+            
+            // Prepare data for D3
+            const data = sortedVersions.map(version => ({
+                version: version,
+                count: versions[version]
+            }));
+            
+            // Create D3 bar chart
+            const margin = {top: 20, right: 30, bottom: 60, left: 60};
+            const width = 1200 - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
+            
+            const svg = d3.select(`#${browserId}-chart`)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // X scale
+            const x = d3.scaleBand()
+                .domain(data.map(d => d.version))
+                .range([0, width])
+                .padding(0.2);
+            
+            // Y scale
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.count)])
+                .nice()
+                .range([height, 0]);
+            
+            // X axis
+            const xAxis = g.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x))
+                .selectAll('text')
+                .attr('transform', 'rotate(-45)')
+                .style('text-anchor', 'end');
+            
+            // Y axis
+            const yAxis = g.append('g')
+                .attr('class', 'axis')
+                .call(d3.axisLeft(y));
+            
+            // Y axis label
+            g.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', 0 - margin.left)
+                .attr('x', 0 - (height / 2))
+                .attr('dy', '1em')
+                .style('text-anchor', 'middle')
+                .style('font-size', '12px')
+                .text('Number of Features');
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            // Bars
+            g.selectAll('.bar')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar')
+                .attr('x', d => x(d.version))
+                .attr('width', x.bandwidth())
+                .attr('y', d => y(d.count))
+                .attr('height', d => height - y(d.count))
+                .attr('fill', color)
+                .on('mouseover', function(event, d) {
+                    tooltip
+                        .style('display', 'block')
+                        .html(`<strong>Version ${d.version}</strong><br/>${d.count} features`);
+                })
+                .on('mousemove', function(event) {
+                    tooltip
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function() {
+                    tooltip.style('display', 'none');
+                });
+            
+            // Zoom functionality
+            const zoom = d3.zoom()
+                .scaleExtent([1, 10])
+                .translateExtent([[0, 0], [width, height]])
+                .extent([[0, 0], [width, height]])
+                .on('zoom', function(event) {
+                    const newX = event.transform.rescaleX(x);
+                    
+                    g.selectAll('.bar')
+                        .attr('x', d => newX(d.version))
+                        .attr('width', newX.bandwidth());
+                    
+                    g.select('.axis')
+                        .call(d3.axisBottom(newX))
+                        .selectAll('text')
+                        .attr('transform', 'rotate(-45)')
+                        .style('text-anchor', 'end');
+                });
+            
+            svg.call(zoom);
+        }
+
+        // Display results
+        displayBrowserVersions('chrome', 'Chrome', '#4285f4');
+        displayBrowserVersions('firefox', 'Firefox', '#ff6611');
+        displayBrowserVersions('safari', 'Safari', '#006cff');
+
+        // Hide loading, show content
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+    </script>
+</body>
+</html>
