@@ -1,5 +1,5 @@
 
-    [Prototype](https://niklas.merz.dev/tpac2025-hackathon/)
+[Prototype (full vibe)](https://niklas.merz.dev/tpac2025-hackathon/)
 
 
-    [Proper Code](https://niklas.merz.dev/tpac2025-hackathon//proper-code/index.html)
+[Proper Code](https://niklas.merz.dev/tpac2025-hackathon//proper-code/tpac2025-hackathon-main/index.html)
