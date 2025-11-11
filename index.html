@@ -33,6 +33,23 @@
         .safari h2 { color: #006cff; border-color: #006cff; }
         .webview-android h2 { color: #3ddc84; border-color: #3ddc84; }
         .safari-ios h2 { color: #147efb; border-color: #147efb; }
+        .comparison h2 { color: #9c27b0; border-color: #9c27b0; }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 10px 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
         #loading {
             text-align: center;
             padding: 40px;
@@ -79,6 +96,26 @@
     <h1>Browser Features by Version</h1>
     <div id="loading">Loading data...</div>
     <div id="content" style="display: none;">
+        <div class="browser-section comparison">
+            <h2>Android: OS Version vs WebView Version</h2>
+            <div class="stats" id="android-comparison-stats"></div>
+            <div class="chart" id="android-comparison-chart"></div>
+        </div>
+        <div class="browser-section comparison">
+            <h2>Android: Feature Difference (OS - WebView)</h2>
+            <div class="stats" id="android-diff-stats"></div>
+            <div class="chart" id="android-diff-chart"></div>
+        </div>
+        <div class="browser-section comparison">
+            <h2>iOS: OS Version vs WebView Version</h2>
+            <div class="stats" id="ios-comparison-stats"></div>
+            <div class="chart" id="ios-comparison-chart"></div>
+        </div>
+        <div class="browser-section comparison">
+            <h2>iOS: Feature Difference (OS - WebView)</h2>
+            <div class="stats" id="ios-diff-stats"></div>
+            <div class="chart" id="ios-diff-chart"></div>
+        </div>
         <div class="browser-section chrome">
             <h2>Chrome</h2>
             <div class="stats" id="chrome-stats"></div>
@@ -124,8 +161,10 @@
         
         const browserData = {
             chrome: {},
+            chrome_android: {},
             firefox: {},
             safari: {},
+            safari_ios: {},
             webview_android: {},
             webview_ios: {}
         };
@@ -172,6 +211,30 @@
                     });
                 }
                 
+                // Chrome Android
+                if (support.chrome_android) {
+                    const versions = Array.isArray(support.chrome_android) ? support.chrome_android : [support.chrome_android];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.chrome_android[version]) browserData.chrome_android[version] = 0;
+                            browserData.chrome_android[version]++;
+                        }
+                    });
+                }
+                
+                // Safari iOS
+                if (support.safari_ios) {
+                    const versions = Array.isArray(support.safari_ios) ? support.safari_ios : [support.safari_ios];
+                    versions.forEach(v => {
+                        if (v.version_added && v.version_added !== true && v.version_added !== false) {
+                            const version = v.version_added.replace('≤', '').replace('≥', '');
+                            if (!browserData.safari_ios[version]) browserData.safari_ios[version] = 0;
+                            browserData.safari_ios[version]++;
+                        }
+                    });
+                }
+                
                 // WebView Android
                 if (support.webview_android) {
                     const versions = Array.isArray(support.webview_android) ? support.webview_android : [support.webview_android];
@@ -184,7 +247,7 @@
                     });
                 }
                 
-                // Safari iOS
+                // WebView iOS
                 if (support.webview_ios) {
                     const versions = Array.isArray(support.webview_ios) ? support.webview_ios : [support.webview_ios];
                     versions.forEach(v => {
@@ -333,7 +396,339 @@
             svg.call(zoom);
         }
 
+        function displayComparisonChart() {
+            // Android comparison: chrome_android (OS) vs webview_android (WebView)
+            displayOSWebViewComparison('android');
+            displayDifferenceChart('android');
+            // iOS comparison: safari_ios (OS) vs webview_ios (WebView)
+            displayOSWebViewComparison('ios');
+            displayDifferenceChart('ios');
+        }
+
+        function displayOSWebViewComparison(platform) {
+            const isAndroid = platform === 'android';
+            const osData = isAndroid ? browserData.chrome_android : browserData.safari_ios;
+            const webviewData = isAndroid ? browserData.webview_android : browserData.webview_ios;
+            const chartId = isAndroid ? 'android-comparison-chart' : 'ios-comparison-chart';
+            const statsId = isAndroid ? 'android-comparison-stats' : 'ios-comparison-stats';
+            const color1 = isAndroid ? '#4285f4' : '#006cff';
+            const color2 = isAndroid ? '#3ddc84' : '#147efb';
+            const label1 = isAndroid ? 'Chrome Android' : 'Safari iOS';
+            const label2 = isAndroid ? 'WebView Android' : 'WebKit/WKWebView';
+            
+            // Get all unique versions
+            const allVersions = new Set([
+                ...Object.keys(osData),
+                ...Object.keys(webviewData)
+            ]);
+            
+            const sortedVersions = Array.from(allVersions).sort((a, b) => parseFloat(a) - parseFloat(b));
+            
+            const data = sortedVersions.map(version => ({
+                version,
+                os: osData[version] || 0,
+                webview: webviewData[version] || 0
+            }));
+            
+            const statsContainer = document.getElementById(statsId);
+            const totalOS = Object.values(osData).reduce((sum, count) => sum + count, 0);
+            const totalWebView = Object.values(webviewData).reduce((sum, count) => sum + count, 0);
+            statsContainer.textContent = `${label1}: ${totalOS} features | ${label2}: ${totalWebView} features`;
+            
+            // Create D3 diverging bar chart
+            const margin = {top: 20, right: 100, bottom: 40, left: 100};
+            const width = 1200 - margin.left - margin.right;
+            const height = Math.max(400, sortedVersions.length * 25) - margin.top - margin.bottom;
+            
+            const svg = d3.select(`#${chartId}`)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Y scale for versions
+            const y = d3.scaleBand()
+                .domain(data.map(d => d.version))
+                .range([0, height])
+                .padding(0.2);
+            
+            // X scale
+            const maxValue = d3.max(data, d => Math.max(d.os, d.webview));
+            const x = d3.scaleLinear()
+                .domain([-maxValue, maxValue])
+                .range([0, width]);
+            
+            // Add center line
+            g.append('line')
+                .attr('x1', x(0))
+                .attr('x2', x(0))
+                .attr('y1', 0)
+                .attr('y2', height)
+                .attr('stroke', '#ddd')
+                .attr('stroke-width', 2);
+            
+            // Y axis (versions)
+            g.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(${x(0)},0)`)
+                .call(d3.axisLeft(y));
+            
+            // X axis
+            g.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x).tickFormat(d => Math.abs(d)));
+            
+            // Left side label
+            g.append('text')
+                .attr('x', x(-maxValue))
+                .attr('y', -5)
+                .style('text-anchor', 'start')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('fill', color1)
+                .text(label1);
+            
+            // Right side label
+            g.append('text')
+                .attr('x', x(maxValue))
+                .attr('y', -5)
+                .style('text-anchor', 'end')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('fill', color2)
+                .text(label2);
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            // OS bars (left side)
+            g.selectAll('.bar-os')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar bar-os')
+                .attr('x', d => x(-d.os))
+                .attr('y', d => y(d.version))
+                .attr('width', d => x(d.os) - x(0))
+                .attr('height', y.bandwidth())
+                .attr('fill', color1)
+                .on('mouseover', function(event, d) {
+                    tooltip
+                        .style('display', 'block')
+                        .html(`<strong>${label1} ${d.version}</strong><br/>${d.os} features`);
+                })
+                .on('mousemove', function(event) {
+                    tooltip
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function() {
+                    tooltip.style('display', 'none');
+                });
+            
+            // WebView bars (right side)
+            g.selectAll('.bar-webview')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar bar-webview')
+                .attr('x', x(0))
+                .attr('y', d => y(d.version))
+                .attr('width', d => x(d.webview) - x(0))
+                .attr('height', y.bandwidth())
+                .attr('fill', color2)
+                .on('mouseover', function(event, d) {
+                    tooltip
+                        .style('display', 'block')
+                        .html(`<strong>${label2} ${d.version}</strong><br/>${d.webview} features`);
+                })
+                .on('mousemove', function(event) {
+                    tooltip
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function() {
+                    tooltip.style('display', 'none');
+                });
+        }
+
+        function displayDifferenceChart(platform) {
+            const isAndroid = platform === 'android';
+            const osData = isAndroid ? browserData.chrome_android : browserData.safari_ios;
+            const webviewData = isAndroid ? browserData.webview_android : browserData.webview_ios;
+            const chartId = isAndroid ? 'android-diff-chart' : 'ios-diff-chart';
+            const statsId = isAndroid ? 'android-diff-stats' : 'ios-diff-stats';
+            const label1 = isAndroid ? 'Chrome Android' : 'Safari iOS';
+            const label2 = isAndroid ? 'WebView Android' : 'WebKit/WKWebView';
+            
+            // Get all unique versions
+            const allVersions = new Set([
+                ...Object.keys(osData),
+                ...Object.keys(webviewData)
+            ]);
+            
+            const sortedVersions = Array.from(allVersions).sort((a, b) => parseFloat(a) - parseFloat(b));
+            
+            const data = sortedVersions.map(version => ({
+                version,
+                os: osData[version] || 0,
+                webview: webviewData[version] || 0,
+                diff: (osData[version] || 0) - (webviewData[version] || 0)
+            }));
+            
+            const statsContainer = document.getElementById(statsId);
+            const totalOS = Object.values(osData).reduce((sum, count) => sum + count, 0);
+            const totalWebView = Object.values(webviewData).reduce((sum, count) => sum + count, 0);
+            const totalDiff = totalOS - totalWebView;
+            const nonZeroDiffs = data.filter(d => d.diff !== 0).length;
+            statsContainer.textContent = `Total Difference: ${totalDiff > 0 ? '+' : ''}${totalDiff} features (${label1}: ${totalOS} | ${label2}: ${totalWebView}) - ${nonZeroDiffs} versions with differences`;
+            
+            // Create D3 bar chart showing difference
+            const margin = {top: 20, right: 150, bottom: 40, left: 150};
+            const width = 1200 - margin.left - margin.right;
+            const height = Math.max(400, sortedVersions.length * 25) - margin.top - margin.bottom;
+            
+            const svg = d3.select(`#${chartId}`)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .style('overflow', 'visible');
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Y scale for versions
+            const y = d3.scaleBand()
+                .domain(data.map(d => d.version))
+                .range([0, height])
+                .padding(0.2);
+            
+            // X scale - add some padding to domain for labels
+            const maxAbsDiff = d3.max(data, d => Math.abs(d.diff));
+            const x = d3.scaleLinear()
+                .domain([-maxAbsDiff * 1.1, maxAbsDiff * 1.1])
+                .range([0, width]);
+            
+            // Add center line
+            g.append('line')
+                .attr('x1', x(0))
+                .attr('x2', x(0))
+                .attr('y1', 0)
+                .attr('y2', height)
+                .attr('stroke', '#333')
+                .attr('stroke-width', 2);
+            
+            // Y axis (versions)
+            g.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(${x(0)},0)`)
+                .call(d3.axisLeft(y));
+            
+            // X axis
+            g.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+            
+            // Left side label (more in WebView)
+            g.append('text')
+                .attr('x', x(-maxAbsDiff))
+                .attr('y', -5)
+                .style('text-anchor', 'start')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('fill', '#e53935')
+                .text(`← More in ${label2}`);
+            
+            // Right side label (more in OS)
+            g.append('text')
+                .attr('x', x(maxAbsDiff))
+                .attr('y', -5)
+                .style('text-anchor', 'end')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('fill', '#43a047')
+                .text(`More in ${label1} →`);
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            // Difference bars
+            g.selectAll('.bar-diff')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar bar-diff')
+                .attr('x', d => d.diff >= 0 ? x(0) : x(d.diff))
+                .attr('y', d => y(d.version))
+                .attr('width', d => Math.abs(x(d.diff) - x(0)))
+                .attr('height', y.bandwidth())
+                .attr('fill', d => d.diff >= 0 ? '#43a047' : '#e53935')
+                .on('mouseover', function(event, d) {
+                    const sign = d.diff > 0 ? '+' : '';
+                    const explanation = d.diff > 0 
+                        ? `${label1} has ${d.diff} more features` 
+                        : d.diff < 0
+                        ? `${label2} has ${Math.abs(d.diff)} more features`
+                        : 'Same features';
+                    tooltip
+                        .style('display', 'block')
+                        .html(`<strong>Version ${d.version}</strong><br/>Difference: ${sign}${d.diff}<br/>${explanation}<br/>${label1}: ${d.os} | ${label2}: ${d.webview}`);
+                })
+                .on('mousemove', function(event) {
+                    tooltip
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function() {
+                    tooltip.style('display', 'none');
+                });
+            
+            // Add difference labels
+            const labelsData = data.filter(d => d.diff !== 0);
+            console.log(`${platform} labels to render:`, labelsData.length);
+            
+            g.selectAll('.diff-label')
+                .data(labelsData)
+                .enter()
+                .append('text')
+                .attr('class', 'diff-label')
+                .attr('x', d => {
+                    const barEnd = d.diff >= 0 ? x(d.diff) : x(d.diff);
+                    const barWidth = Math.abs(x(d.diff) - x(0));
+                    // Position inside bar if it's wide enough, otherwise outside
+                    if (barWidth > 40) {
+                        return d.diff >= 0 ? barEnd - 5 : barEnd + 5;
+                    } else {
+                        return d.diff >= 0 ? barEnd + 5 : barEnd - 5;
+                    }
+                })
+                .attr('y', d => y(d.version) + y.bandwidth() / 2)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', d => {
+                    const barWidth = Math.abs(x(d.diff) - x(0));
+                    if (barWidth > 40) {
+                        return d.diff >= 0 ? 'end' : 'start';
+                    } else {
+                        return d.diff >= 0 ? 'start' : 'end';
+                    }
+                })
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('fill', d => {
+                    const barWidth = Math.abs(x(d.diff) - x(0));
+                    return barWidth > 40 ? '#fff' : '#d32f2f';
+                })
+                .style('pointer-events', 'none')
+                .text(d => (d.diff > 0 ? '+' : '') + d.diff);
+        }
+
+
         // Display results
+        displayComparisonChart();
         displayBrowserVersions('chrome', 'Chrome', '#4285f4');
         displayBrowserVersions('firefox', 'Firefox', '#ff6611');
         displayBrowserVersions('safari', 'Safari', '#006cff');
